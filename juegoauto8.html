@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Drag Race Multiplicaciones - Retro y Pistas con SVG</title>
+  <style>
+    /* Estilos generales */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    h1 {
+      background: #222;
+      color: #fff;
+      margin: 0;
+      padding: 10px;
+    }
+    /* Botón de instrucciones en el header */
+    #instructionsButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      font-size: 0.9em;
+      cursor: pointer;
+      z-index: 200;
+    }
+    /* Selector de pistas (barra horizontal) */
+    #trackSelector {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 10px;
+      gap: 10px;
+    }
+    .trackItem {
+      padding: 5px 10px;
+      border: 1px solid #222;
+      border-radius: 3px;
+      background: #ddd;
+      cursor: pointer;
+    }
+    .trackItem.locked {
+      background: #999;
+      cursor: not-allowed;
+    }
+    .trackItem.current {
+      background: #ff0;
+      font-weight: bold;
+    }
+    /* Contenedor principal de la pista y estadísticas */
+    #gameContainer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      margin-top: 20px;
+    }
+    /* Pista de carrera */
+    #raceTrack {
+      position: relative;
+      width: 800px;
+      height: 420px; /* 7 carriles de 60px cada uno */
+      background: #444;
+      border: 5px solid #222;
+    }
+    /* Nombre de la pista (dentro de la pista) */
+    #trackName {
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.2em;
+      color: #fff;
+      background: rgba(0,0,0,0.5);
+      padding: 2px 8px;
+      border-radius: 3px;
+      z-index: 10;
+    }
+    /* Panel de estadísticas */
+    #statsPanel {
+      width: 200px;
+      margin-left: 20px;
+      text-align: left;
+    }
+    .stats {
+      margin-bottom: 5px;
+      padding: 3px;
+      border: 1px solid #222;
+      background: #eee;
+      font-size: 0.8em;
+      line-height: 1.2em;
+    }
+    /* Línea de meta */
+    #finishLine {
+      position: absolute;
+      width: 5px;
+      height: 100%;
+      background: yellow;
+      right: 50px;
+      top: 0;
+    }
+    /* Área de pregunta y controles */
+    #questionArea {
+      margin-top: 20px;
+    }
+    #questionText {
+      font-size: 1.3em;
+      margin-bottom: 10px;
+    }
+    input[type="number"] {
+      padding: 5px;
+      font-size: 1.2em;
+      width: 100px;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1em;
+      margin: 5px;
+      cursor: pointer;
+    }
+    #timer {
+      font-weight: bold;
+    }
+    #message {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-top: 20px;
+      height: 1.5em;
+    }
+    /* Estilo para los autos usando SVG */
+    .car {
+      position: absolute;
+      width: 40px;
+      height: 20px;
+      image-rendering: pixelated;
+    }
+    .car svg {
+      width: 100%;
+      height: 100%;
+    }
+    /* Recuadro de resumen de carrera (overlay) */
+    #raceSummary {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #summaryContent {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      max-width: 500px;
+    }
+    #summaryStats {
+      margin: 10px 0;
+      text-align: left;
+    }
+    /* Popup de instrucciones */
+    #instructionsPopup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+    }
+    #instructionsContent {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: left;
+      max-width: 500px;
+    }
+    #instructionsContent h2 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drag Race Multiplicaciones - Retro y Pistas con SVG</h1>
+  <button id="instructionsButton">Instrucciones</button>
+  <!-- Selector de pistas -->
+  <div id="trackSelector"></div>
+  
+  <div id="gameContainer">
+    <div id="raceTrack">
+      <div id="trackName">Pista</div>
+      <div id="finishLine"></div>
+      <!-- Los autos se agregarán dinámicamente -->
+    </div>
+    <div id="statsPanel">
+      <h2>Estadísticas</h2>
+      <!-- Aquí se generarán las estadísticas de cada competidor -->
+    </div>
+  </div>
+  
+  <div id="questionArea">
+    <p id="questionText">Presiona "Iniciar Carrera" para comenzar</p>
+    <input type="number" id="answerInput" autocomplete="off" disabled />
+    <button id="submitAnswer" disabled>Responder</button>
+    <p>Tiempo: <span id="timer">0.0</span> s</p>
+  </div>
+  
+  <div id="message"></div>
+  <button id="startRaceButton">Iniciar Carrera</button>
+  
+  <!-- Recuadro de resumen de carrera (overlay) -->
+  <div id="raceSummary">
+    <div id="summaryContent">
+      <h2>Resumen de la Carrera</h2>
+      <div id="summaryStats"></div>
+      <button id="nextRaceButton">Seleccionar siguiente pista</button>
+    </div>
+  </div>
+  
+  <!-- Popup de instrucciones -->
+  <div id="instructionsPopup">
+    <div id="instructionsContent">
+      <h2>Instrucciones</h2>
+      <p>
+        El juego consiste en responder multiplicaciones rápidamente para avanzar en una carrera.
+        Cada respuesta equivale a una vuelta.
+      </p>
+      <p>
+        La pista seleccionada tiene un nivel de dificultad que afecta el tiempo disponible para responder y el rango de multiplicaciones.
+        En pistas de menor dificultad tendrás más tiempo y multiplicaciones más sencillas; en pistas de mayor dificultad, el tiempo disminuye y el rango se amplía.
+      </p>
+      <p>
+        Desbloquea nuevas pistas ganando la carrera (quedando en 1.º). Si terminas último, se suma un fallo.
+        Al acumular 3 fallos en una pista, ésta se bloqueará y deberás volver a la primera pista.
+      </p>
+      <button id="closeInstructionsButton">Cerrar</button>
+    </div>
+  </div>
+  
+  <script>
+    /* VARIABLES GLOBALES Y CONFIGURACIÓN */
+    let level = 1;
+    let allowedTime, minFactor, maxFactor, baseAdvance, bonusAdvanceMax;
+    const finishDistance = 700;
+    const laneHeight = 60;
+    let competitors = [];
+    let currentAnswer = 0;
+    let questionStartTime;
+    let timerInterval;
+    
+    // Datos de pistas con dificultad suave
+    let tracks = [
+      { name: "Circuito Retro", difficulty: 1, unlocked: true, failCount: 0 },
+      { name: "Pista Neon", difficulty: 1.5, unlocked: false, failCount: 0 },
+      { name: "Autódromo Pixel", difficulty: 2, unlocked: false, failCount: 0 },
+      { name: "Velocidad 8-bit", difficulty: 2.5, unlocked: false, failCount: 0 },
+      { name: "Carrera Clásica", difficulty: 3, unlocked: false, failCount: 0 },
+      { name: "Ruta Atari", difficulty: 3.5, unlocked: false, failCount: 0 }
+    ];
+    let currentTrack = tracks[0];
+    
+    // Datos de los CPU: nombres, colores y habilidades fijas (skill)
+    const cpuNames = ["Turbo", "Lightning", "Rayo", "Fuego", "Sonic", "Veloz"];
+    const cpuColors = ["blue", "green", "orange", "purple", "cyan", "magenta"];
+    const cpuSkills = [8, 9, 7, 6, 8, 7];
+    
+    // Referencias al DOM
+    const raceTrack = document.getElementById("raceTrack");
+    const statsPanel = document.getElementById("statsPanel");
+    const questionText = document.getElementById("questionText");
+    const answerInput = document.getElementById("answerInput");
+    const submitAnswer = document.getElementById("submitAnswer");
+    const timerDisplay = document.getElementById("timer");
+    const messageDisplay = document.getElementById("message");
+    const startRaceButton = document.getElementById("startRaceButton");
+    
+    // Elementos del resumen de carrera
+    const raceSummary = document.getElementById("raceSummary");
+    const summaryStats = document.getElementById("summaryStats");
+    const nextRaceButton = document.getElementById("nextRaceButton");
+    
+    // Elementos del popup de instrucciones
+    const instructionsPopup = document.getElementById("instructionsPopup");
+    const instructionsButton = document.getElementById("instructionsButton");
+    const closeInstructionsButton = document.getElementById("closeInstructionsButton");
+    
+    /* CARGAR EL SVG EXTERNO */
+    let carSVGTemplate = null;
+    // Deshabilitamos el botón de inicio hasta que se cargue el SVG.
+    startRaceButton.disabled = true;
+    fetch('miAuto.svg')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("No se pudo cargar el SVG.");
+        }
+        return response.text();
+      })
+      .then(data => {
+        carSVGTemplate = data;
+        startRaceButton.disabled = false;
+      })
+      .catch(error => {
+        console.error("Error al cargar el SVG:", error);
+        carSVGTemplate = `<svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="0" width="100" height="50" fill="gray"/>
+                          </svg>`;
+        startRaceButton.disabled = false;
+      });
+    
+    /* Función auxiliar para asignar el color al auto */
+    function setCarColor(carElement, color) {
+      // Busca un elemento con la clase 'carBody'
+      let bodyElem = carElement.querySelector('.carBody');
+      if (bodyElem) {
+        bodyElem.setAttribute('fill', color);
+      } else {
+        // Si no se encuentra, se intenta cambiar el atributo 'fill' en el primer SVG
+        let svgElem = carElement.querySelector('svg');
+        if (svgElem) {
+          svgElem.setAttribute('fill', color);
+        }
+      }
+    }
+    
+    /* FUNCIONES DEL SELECTOR DE PISTAS */
+    function renderTrackSelector() {
+      const ts = document.getElementById("trackSelector");
+      ts.innerHTML = "";
+      tracks.forEach(track => {
+        const trackDiv = document.createElement("div");
+        trackDiv.className = "trackItem";
+        if (!track.unlocked) {
+          trackDiv.classList.add("locked");
+        }
+        if (track === currentTrack) {
+          trackDiv.classList.add("current");
+        }
+        trackDiv.textContent = track.name + " (" + track.difficulty + ")";
+        trackDiv.addEventListener("click", function() {
+          if (track.unlocked) {
+            currentTrack = track;
+            updateTrackSelectorUI();
+            startNewRace();
+          }
+        });
+        ts.appendChild(trackDiv);
+      });
+    }
+    function updateTrackSelectorUI() {
+      renderTrackSelector();
+    }
+    
+    /* FUNCIONES PARA DESBLOQUEAR / BLOQUEAR PISTAS */
+    function unlockNextTrack() {
+      let nextTrack = tracks.find(t => t.difficulty === currentTrack.difficulty + 0.5);
+      if (nextTrack) {
+        nextTrack.unlocked = true;
+        messageDisplay.textContent += " ¡Has desbloqueado " + nextTrack.name + "!";
+      }
+      updateTrackSelectorUI();
+    }
+    function lockCurrentTrack() {
+      if (currentTrack.difficulty > 1) {
+        currentTrack.unlocked = false;
+        messageDisplay.textContent += " La pista " + currentTrack.name + " se ha bloqueado.";
+        currentTrack = tracks[0];
+        updateTrackSelectorUI();
+      }
+    }
+    
+    /* UTILIDAD: Color aleatorio para la pista */
+    function getRandomTrackColor() {
+      const colores = ["#444", "#555", "#666", "#333"];
+      return colores[Math.floor(Math.random() * colores.length)];
+    }
+    
+    /* INICIALIZAR COMPETIDORES (Jugador y 6 CPU) */
+    function initCompetitors() {
+      competitors = [];
+      // Limpiar la pista y el panel de estadísticas para evitar duplicados.
+      raceTrack.innerHTML = "";
+      statsPanel.innerHTML = "<h2>Estadísticas</h2>";
+      
+      // Agregar la línea de meta
+      let finishLine = document.createElement("div");
+      finishLine.id = "finishLine";
+      raceTrack.appendChild(finishLine);
+      
+      // Agregar el nombre de la pista
+      let trackNameElement = document.createElement("div");
+      trackNameElement.id = "trackName";
+      trackNameElement.textContent = currentTrack.name;
+      raceTrack.appendChild(trackNameElement);
+      
+      // Función para obtener el SVG del auto (clonado desde el template)
+      function getCarSVG() {
+        if (carSVGTemplate) {
+          let tempDiv = document.createElement("div");
+          tempDiv.innerHTML = carSVGTemplate;
+          return tempDiv.innerHTML;
+        } else {
+          return `<svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="0" width="100" height="50" fill="gray"/>
+                  </svg>`;
+        }
+      }
+      
+      // Competidor Jugador
+      let player = {
+        id: "player",
+        name: "Tu Auto",
+        isPlayer: true,
+        pos: 0,
+        lapCount: 0,
+        lapTimes: [],
+        totalTime: 0,
+        fastestLap: Infinity,
+        averageLap: 0,
+        carElement: document.createElement("div"),
+        statsElement: document.createElement("div")
+      };
+      player.carElement.className = "car";
+      player.carElement.innerHTML = getCarSVG();
+      setCarColor(player.carElement, "red");
+      raceTrack.appendChild(player.carElement);
+      player.statsElement.className = "stats";
+      statsPanel.appendChild(player.statsElement);
+      competitors.push(player);
+      
+      // Competidores CPU
+      for (let i = 0; i < cpuNames.length; i++) {
+        let cpu = {
+          id: "cpu" + (i+1),
+          name: cpuNames[i],
+          isPlayer: false,
+          pos: 0,
+          lapCount: 0,
+          lapTimes: [],
+          totalTime: 0,
+          fastestLap: Infinity,
+          averageLap: 0,
+          carElement: document.createElement("div"),
+          statsElement: document.createElement("div"),
+          skill: cpuSkills[i]
+        };
+        cpu.carElement.className = "car";
+        cpu.carElement.innerHTML = getCarSVG();
+        setCarColor(cpu.carElement, cpuColors[i]);
+        raceTrack.appendChild(cpu.carElement);
+        cpu.statsElement.className = "stats";
+        statsPanel.appendChild(cpu.statsElement);
+        competitors.push(cpu);
+      }
+      updateCarPositions();
+      updateStats();
+    }
+    
+    /* ACTUALIZAR POSICIONES Y ESTADÍSTICAS */
+    function updateCarPositions() {
+      competitors.forEach((comp, index) => {
+        comp.carElement.style.left = comp.pos + "px";
+        comp.carElement.style.top = (index * laneHeight + 10) + "px";
+      });
+    }
+    function updateStats() {
+      competitors.forEach((comp) => {
+        let fastest = (comp.fastestLap === Infinity) ? "-" : comp.fastestLap.toFixed(2) + "s";
+        let avg = (comp.lapCount === 0) ? "-" : comp.averageLap.toFixed(2) + "s";
+        comp.statsElement.innerHTML = `<strong>${comp.name}</strong><br>
+          V: ${comp.lapCount} | M: ${fastest} <br> T: ${comp.totalTime.toFixed(2)}s | P: ${avg}`;
+      });
+    }
+    function resetRacePositions() {
+      competitors.forEach(comp => {
+        comp.pos = 0;
+        comp.lapCount = 0;
+        comp.lapTimes = [];
+        comp.totalTime = 0;
+        comp.fastestLap = Infinity;
+        comp.averageLap = 0;
+      });
+      updateCarPositions();
+      updateStats();
+    }
+    
+    /* INICIALIZAR PARÁMETROS DEL NIVEL SEGÚN LA PISTA SELECCIONADA */
+    function initLevel() {
+      level = currentTrack.difficulty;
+      allowedTime = Math.max(3, 10 - ((level - 1) * 1.5));
+      minFactor = Math.round(1 + (level - 1));
+      maxFactor = Math.round(5 + (level - 1) * 2);
+      baseAdvance = 50 + ((level - 1) * 5);
+      bonusAdvanceMax = 50;
+      raceTrack.style.background = getRandomTrackColor();
+      document.getElementById("trackName").textContent = currentTrack.name;
+      messageDisplay.textContent = "Pista: " + currentTrack.name + " (Dif: " + level + ") - ¡Buena suerte!";
+    }
+    
+    /* GENERAR UNA NUEVA PREGUNTA DE MULTIPLICACIÓN */
+    function generateQuestion() {
+      const factor1 = Math.floor(Math.random() * (maxFactor - minFactor + 1)) + minFactor;
+      const factor2 = Math.floor(Math.random() * (maxFactor - minFactor + 1)) + minFactor;
+      currentAnswer = factor1 * factor2;
+      questionText.textContent = "¿Cuánto es " + factor1 + " x " + factor2 + " ?";
+      answerInput.value = "";
+      answerInput.disabled = false;
+      answerInput.focus();
+      submitAnswer.disabled = false;
+      questionStartTime = Date.now();
+      startTimer();
+    }
+    
+    /* INICIAR EL CRONÓMETRO PARA RESPONDER */
+    function startTimer() {
+      clearInterval(timerInterval);
+      let timeLeft = allowedTime;
+      timerDisplay.textContent = timeLeft.toFixed(1);
+      timerInterval = setInterval(() => {
+        let elapsed = (Date.now() - questionStartTime) / 1000;
+        let remaining = allowedTime - elapsed;
+        if (remaining <= 0) {
+          timerDisplay.textContent = "0.0";
+          clearInterval(timerInterval);
+          processAnswer(null);
+        } else {
+          timerDisplay.textContent = remaining.toFixed(1);
+        }
+      }, 100);
+    }
+    
+    /* PROCESAR RESPUESTA DEL JUGADOR Y SIMULAR VUELTA PARA TODOS LOS COMPETIDORES */
+    function processAnswer(userAnswer) {
+      clearInterval(timerInterval);
+      answerInput.disabled = true;
+      submitAnswer.disabled = true;
+      let currentTime = Date.now();
+      let lapTime;
+      let player = competitors[0];
+      if (userAnswer === null) {
+        messageDisplay.textContent = "¡Se acabó el tiempo!";
+        lapTime = allowedTime;
+      } else {
+        if (parseInt(userAnswer) === currentAnswer) {
+          messageDisplay.textContent = "¡Correcto!";
+        } else {
+          messageDisplay.textContent = "Incorrecto. La respuesta era " + currentAnswer;
+        }
+        lapTime = (currentTime - questionStartTime) / 1000;
+      }
+      player.lapCount++;
+      player.lapTimes.push(lapTime);
+      player.totalTime += lapTime;
+      if (lapTime < player.fastestLap) player.fastestLap = lapTime;
+      player.averageLap = player.totalTime / player.lapCount;
+      
+      let playerAdvance = 0;
+      if (parseInt(userAnswer) === currentAnswer) {
+        let remainingTime = Math.max(0, allowedTime - lapTime);
+        let bonus = (remainingTime / allowedTime) * bonusAdvanceMax;
+        playerAdvance = baseAdvance + bonus;
+      }
+      player.pos += playerAdvance;
+      
+      competitors.slice(1).forEach(cpu => {
+        let cpuLapTime = Math.max(2, allowedTime * 0.5 - (cpu.skill * 0.2) + (Math.random() * 2));
+        cpu.lapCount++;
+        cpu.lapTimes.push(cpuLapTime);
+        cpu.totalTime += cpuLapTime;
+        if (cpuLapTime < cpu.fastestLap) cpu.fastestLap = cpuLapTime;
+        cpu.averageLap = cpu.totalTime / cpu.lapCount;
+        
+        let bonus = 0;
+        if (cpuLapTime < allowedTime) {
+          bonus = ((allowedTime - cpuLapTime) / allowedTime) * bonusAdvanceMax;
+        }
+        let cpuAdvance = baseAdvance + bonus + (Math.random() * 10 - 5);
+        cpu.pos += cpuAdvance;
+      });
+      
+      updateCarPositions();
+      updateStats();
+      
+      setTimeout(checkRaceStatus, 500);
+    }
+    
+    /* VERIFICAR ESTADO DE LA CARRERA Y MOSTRAR RESUMEN */
+    function checkRaceStatus() {
+      if (competitors.some(comp => comp.pos >= finishDistance)) {
+        let sortedCompetitors = competitors.slice().sort((a, b) => b.pos - a.pos);
+        let playerRank = sortedCompetitors.findIndex(comp => comp.isPlayer) + 1;
+        let raceMessage = "";
+        if (playerRank === 1) {
+          raceMessage = "¡Eres el rey de la pista! Felicidades, desbloqueas la siguiente pista!";
+          unlockNextTrack();
+          currentTrack.failCount = 0;
+        } else if (playerRank <= 3) {
+          raceMessage = "¡Buen trabajo! Quedaste entre los 3 primeros.";
+        } else if (playerRank === competitors.length) {
+          raceMessage = "¡Vaya, saliste último!";
+          if (!currentTrack.failCount) currentTrack.failCount = 0;
+          currentTrack.failCount++;
+          if (currentTrack.failCount >= 3) {
+            raceMessage += " La pista se ha bloqueado por 3 veces último.";
+            lockCurrentTrack();
+          }
+        } else {
+          raceMessage = "¡Inténtalo de nuevo!";
+        }
+        showRaceSummary(sortedCompetitors, raceMessage);
+      } else {
+        setTimeout(generateQuestion, 1000);
+      }
+    }
+    
+    /* MOSTRAR EL RESUMEN DE LA CARRERA (overlay) */
+    function showRaceSummary(sortedCompetitors, raceMessage) {
+      let summaryHTML = "<p>" + raceMessage + "</p>";
+      summaryHTML += "<h3>Resultados:</h3>";
+      summaryHTML += "<ol>";
+      sortedCompetitors.forEach(comp => {
+        let fastest = (comp.fastestLap === Infinity) ? "-" : comp.fastestLap.toFixed(2) + "s";
+        summaryHTML += "<li>" + comp.name + " - Vueltas: " + comp.lapCount + ", Total: " + comp.totalTime.toFixed(2) + "s, Mejor: " + fastest + "</li>";
+      });
+      summaryHTML += "</ol>";
+      summaryStats.innerHTML = summaryHTML;
+      raceSummary.style.display = "flex";
+    }
+    
+    function hideRaceSummary() {
+      raceSummary.style.display = "none";
+    }
+    
+    /* INICIAR UNA NUEVA CARRERA (al cerrar el resumen) */
+    function startNewRace() {
+      resetRacePositions();
+      initLevel();
+      messageDisplay.textContent = "Pista: " + currentTrack.name + " (Dif: " + level + ") - ¡Buena suerte!";
+      generateQuestion();
+    }
+    
+    /* EVENTOS */
+    submitAnswer.addEventListener("click", function() {
+      if (answerInput.value === "") return;
+      processAnswer(answerInput.value);
+    });
+    
+    answerInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        submitAnswer.click();
+      }
+    });
+    
+    startRaceButton.addEventListener("click", function() {
+      startRaceButton.style.display = "none";
+      level = currentTrack.difficulty;
+      initCompetitors();
+      resetRacePositions();
+      initLevel();
+      messageDisplay.textContent = "Pista: " + currentTrack.name + " (Dif: " + level + ") - ¡Buena suerte!";
+      generateQuestion();
+    });
+    
+    nextRaceButton.addEventListener("click", function() {
+      hideRaceSummary();
+      startRaceButton.style.display = "inline-block";
+    });
+    
+    instructionsButton.addEventListener("click", function() {
+      instructionsPopup.style.display = "flex";
+    });
+    
+    closeInstructionsButton.addEventListener("click", function() {
+      instructionsPopup.style.display = "none";
+    });
+    
+    // Inicializar el selector de pistas al cargar la página
+    updateTrackSelectorUI();
+  </script>
+</body>
+</html>
