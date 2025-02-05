@@ -213,6 +213,7 @@
     <p id="questionText">Presiona "Iniciar Carrera" para comenzar</p>
     <input type="number" id="answerInput" autocomplete="off" disabled />
     <button id="submitAnswer" disabled>Responder</button>
+    <button id="voiceAnswer" disabled>Hablar</button>
     <p>Tiempo: <span id="timer">0.0</span> s</p>
   </div>
   
@@ -248,16 +249,29 @@
     </div>
   </div>
   
+  <!-- Popup de selección de modo de respuesta (STT) -->
+  <div id="sttOptionPopup" style="display: none; position: fixed; top: 0; left: 0; width:100%; height:100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 160;">
+    <div id="sttOptionContent" style="background: #fff; padding: 20px; border-radius: 10px; text-align: center; max-width: 400px;">
+      <p>¿Desea habilitar respuestas por voz para esta carrera?</p>
+      <button id="enableVoice">Sí</button>
+      <button id="disableVoice">No</button>
+    </div>
+  </div>
+  
   <script>
     /* VARIABLES GLOBALES Y CONFIGURACIÓN */
     let level = 1;
     let allowedTime, minFactor, maxFactor, baseAdvance, bonusAdvanceMax;
+    let voiceEnabled = false;
+    let recognition = null;
     const finishDistance = 700;
     const laneHeight = 60;
     let competitors = [];
     let currentAnswer = 0;
     let questionStartTime;
     let timerInterval;
+    let questionAnswered = false;
+    let voiceRecognitionDelay = 2000; // Delay en milisegundos para el reconocimiento de voz
     
     // Datos de pistas con dificultad suave
     let tracks = [
@@ -518,6 +532,7 @@
       answerInput.focus();
       submitAnswer.disabled = false;
       questionStartTime = Date.now();
+      questionAnswered = false;
       startTimer();
     }
     
@@ -541,6 +556,8 @@
     
     /* PROCESAR RESPUESTA DEL JUGADOR Y SIMULAR VUELTA PARA TODOS LOS COMPETIDORES */
     function processAnswer(userAnswer) {
+      if(questionAnswered) return;
+      questionAnswered = true;
       clearInterval(timerInterval);
       answerInput.disabled = true;
       submitAnswer.disabled = true;
@@ -557,6 +574,10 @@
           messageDisplay.textContent = "Incorrecto. La respuesta era " + currentAnswer;
         }
         lapTime = (currentTime - questionStartTime) / 1000;
+        if (voiceEnabled) {
+          const delaySeconds = voiceRecognitionDelay / 1000;
+          lapTime = Math.max(0, lapTime - delaySeconds);
+        }
       }
       player.lapCount++;
       player.lapTimes.push(lapTime);
@@ -665,6 +686,28 @@
     });
     
     startRaceButton.addEventListener("click", function() {
+      document.getElementById("sttOptionPopup").style.display = "flex";
+    });
+    
+    document.getElementById("enableVoice").addEventListener("click", function() {
+      voiceEnabled = true;
+      document.getElementById("voiceAnswer").style.display = "none";
+      document.getElementById("sttOptionPopup").style.display = "none";
+      if (recognition !== null) {
+         recognition.continuous = true;
+         recognition.start();
+      }
+      startRace();
+    });
+    
+    document.getElementById("disableVoice").addEventListener("click", function() {
+      voiceEnabled = false;
+      document.getElementById("voiceAnswer").style.display = "none";
+      document.getElementById("sttOptionPopup").style.display = "none";
+      startRace();
+    });
+    
+    function startRace() {
       startRaceButton.style.display = "none";
       level = currentTrack.difficulty;
       initCompetitors();
@@ -672,7 +715,7 @@
       initLevel();
       messageDisplay.textContent = "Pista: " + currentTrack.name + " (Dif: " + level + ") - ¡Buena suerte!";
       generateQuestion();
-    });
+    }
     
     nextRaceButton.addEventListener("click", function() {
       hideRaceSummary();
@@ -689,6 +732,30 @@
     
     // Inicializar el selector de pistas al cargar la página
     updateTrackSelectorUI();
+
+    // Integrar reconocimiento de voz usando Web Speech API
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.addEventListener("result", (event) => {
+        if(questionAnswered) return;
+        let transcript = event.results[event.results.length - 1][0].transcript.trim();
+        answerInput.value = transcript;
+        processAnswer(transcript);
+      });
+
+      recognition.addEventListener("error", (event) => {
+        console.error("Error en reconocimiento de voz:", event.error);
+        messageDisplay.textContent = "Error en reconocimiento de voz: " + event.error;
+      });
+    } else {
+      console.warn("Web Speech API no está soportada en este navegador.");
+      messageDisplay.textContent = "Tu navegador no soporta el reconocimiento de voz.";
+    }
   </script>
 </body>
 </html>
