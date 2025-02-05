@@ -497,7 +497,7 @@
     /* INICIALIZAR PARÁMETROS DEL NIVEL SEGÚN LA PISTA SELECCIONADA */
     function initLevel() {
       level = currentTrack.difficulty;
-      allowedTime = Math.max(3, 10 - ((level - 1) * 1.5));
+      allowedTime = Math.max(5, 10 - ((level - 1) * 1));
       minFactor = Math.round(1 + (level - 1));
       maxFactor = Math.round(5 + (level - 1) * 2);
       baseAdvance = 50 + ((level - 1) * 5);
@@ -567,8 +567,9 @@
       let playerAdvance = 0;
       if (parseInt(userAnswer) === currentAnswer) {
         let remainingTime = Math.max(0, allowedTime - lapTime);
-        let bonus = (remainingTime / allowedTime) * bonusAdvanceMax;
-        playerAdvance = baseAdvance + bonus;
+        let maxReward = baseAdvance + bonusAdvanceMax;
+        let minReward = 40;
+        playerAdvance = minReward + ((maxReward - minReward) * (remainingTime / allowedTime));
       }
       player.pos += playerAdvance;
       
@@ -600,22 +601,24 @@
         let sortedCompetitors = competitors.slice().sort((a, b) => b.pos - a.pos);
         let playerRank = sortedCompetitors.findIndex(comp => comp.isPlayer) + 1;
         let raceMessage = "";
-        if (playerRank === 1) {
-          raceMessage = "¡Eres el rey de la pista! Felicidades, desbloqueas la siguiente pista!";
-          unlockNextTrack();
-          currentTrack.failCount = 0;
-        } else if (playerRank <= 3) {
-          raceMessage = "¡Buen trabajo! Quedaste entre los 3 primeros.";
-        } else if (playerRank === competitors.length) {
+        if (playerRank === competitors.length) {
           raceMessage = "¡Vaya, saliste último!";
-          if (!currentTrack.failCount) currentTrack.failCount = 0;
-          currentTrack.failCount++;
+          currentTrack.failCount = (currentTrack.failCount || 0) + 1;
           if (currentTrack.failCount >= 3) {
             raceMessage += " La pista se ha bloqueado por 3 veces último.";
             lockCurrentTrack();
           }
         } else {
-          raceMessage = "¡Inténtalo de nuevo!";
+          // Reset fail count if the player doesn't finish last
+          currentTrack.failCount = 0;
+          if (playerRank === 1) {
+            raceMessage = "¡Eres el rey de la pista! Felicidades, desbloqueas la siguiente pista!";
+            unlockNextTrack();
+          } else if (playerRank <= 3) {
+            raceMessage = "¡Buen trabajo! Quedaste entre los 3 primeros.";
+          } else {
+            raceMessage = "¡Inténtalo de nuevo!";
+          }
         }
         showRaceSummary(sortedCompetitors, raceMessage);
       } else {
